@@ -39,55 +39,65 @@ app.get('/', (req, res) => {
 });
 
 app.post('/send', async (req, res) => {
-  const { number, message } = req.body;
-
-  if (!number || !message) {
-    return res.json({ success: false, error: 'Please provide number and message.' });
-  }
-
-  const normalized = normalizeNumber(number);
-  if (!normalized) {
-    return res.json({ success: false, error: 'Invalid number format (09xxxxxxxxx) or (+63xxxxxxxxxx).' });
-  }
-
-  const suffix = '-freed0m';
-  const credits = '\n\nThis is a free text, officially developed by Marjhun Baylon.';
-  const finalMessage = message.endsWith(suffix) ? `${message}${credits}` : `${message} ${suffix}${credits}`;
-
-  const payload = [
-    'free.text.sms',
-    '412',
-    normalized,
-    'DEVICE',
-    'fjsx9-G7QvGjmPgI08MMH0:APA91bGcxiqo05qhojnIdWFYpJMHAr45V8-kdccEshHpsci6UVaxPH4X4I57Mr6taR6T4wfsuKFJ_T-PBcbiWKsKXstfMyd6cwdqwmvaoo7bSsSJeKhnpiM',
-    finalMessage,
-    ''
-  ];
-
-  const postData = qs.stringify({
-    humottaee: 'Processing',
-    '$Oj0O%K7zi2j18E': JSON.stringify(payload),
-    device_id: generateDeviceId()
-  });
-
-  const config = {
-    method: 'POST',
-    url: 'https://sms.m2techtronix.com/v13/sms.php',
-    headers: {
-      'User-Agent': randomUserAgent(),
-      'Connection': 'Keep-Alive',
-      'Accept-Encoding': 'gzip',
-      'Content-Type': 'application/x-www-form-urlencoded',
-      'Accept-Charset': 'UTF-8'
-    },
-    data: postData
-  };
-
   try {
+    const { number, message } = req.body;
+    if (!number || !message) {
+      return res.status(400).json({ success: false, error: 'Please provide number and message.' });
+    }
+    if (message.length > 480) {
+      return res.status(400).json({ success: false, error: 'Message exceeds 480 characters limit.' });
+    }
+
+    const normalized = normalizeNumber(number);
+    if (!normalized) {
+      return res.status(400).json({ success: false, error: 'Invalid number format (09xxxxxxxxx or +63xxxxxxxxxx).' });
+    }
+
+    const credits = `\n\nThis is a free text, officially developed by Marjhun Baylon.\nVisit: https://freetextph.up.railway.app/`;
+    const finalMessage = `${message.trim()}${credits}`;
+
+    const payload = [
+      'free.text.sms',
+      '412',
+      normalized,
+      'DEVICE',
+      'fjsx9-G7QvGjmPgI08MMH0:APA91bGcxiqo05qhojnIdWFYpJMHAr45V8-kdccEshHpsci6UVaxPH4X4I57Mr6taR6T4wfsuKFJ_T-PBcbiWKsKXstfMyd6cwdqwmvaoo7bSsSJeKhnpiM',
+      finalMessage,
+      ''
+    ];
+
+    const postData = qs.stringify({
+      humottaee: 'Processing',
+      '$Oj0O%K7zi2j18E': JSON.stringify(payload),
+      device_id: generateDeviceId()
+    });
+
+    const config = {
+      method: 'POST',
+      url: 'https://sms.m2techtronix.com/v13/sms.php',
+      headers: {
+        'User-Agent': randomUserAgent(),
+        'Connection': 'Keep-Alive',
+        'Accept-Encoding': 'gzip',
+        'Content-Type': 'application/x-www-form-urlencoded',
+        'Accept-Charset': 'UTF-8'
+      },
+      data: postData,
+      timeout: 15000
+    };
+
     const response = await axios.request(config);
-    res.json({ success: true, message: 'SMS SENDED SUCCESSFULLY\n\nTHANK YOU FOR USING MY WEB - Marjhun Baylon', data: response.data });
+
+    return res.json({
+      success: true,
+      message: '📨 SMS sent successfully!',
+      serverResponse: response.data
+    });
   } catch (err) {
-    res.json({ success: false, error: err.response?.data || err.message });
+    return res.status(500).json({
+      success: false,
+      error: err.response?.data || err.message || 'Unknown error'
+    });
   }
 });
 
