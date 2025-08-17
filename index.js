@@ -51,7 +51,7 @@ app.post('/send', async (req, res) => {
   }
 
   const suffix = '-freed0m';
-  const credits = '\n\nThis is from FREE TEXT PH, officially developed by Marjhun Baylon.\nVisit: https://freetextph.up.railway.app/';
+  const credits = '\n\nThis is a free text, officially developed by Marjhun Baylon.';
   const finalMessage = message.endsWith(suffix) ? `${message}${credits}` : `${message} ${suffix}${credits}`;
 
   const payload = [
@@ -85,7 +85,7 @@ app.post('/send', async (req, res) => {
 
   try {
     const response = await axios.request(config);
-    res.json({ success: true, message: 'SMS SENDED SUCCESSFULLY', data: response.data });
+    res.json({ success: true, message: 'SMS SENDED SUCCESSFULLY\n\nTHANK YOU FOR USING MY WEB - Marjhun Baylon', data: response.data });
   } catch (err) {
     res.json({ success: false, error: err.response?.data || err.message });
   }
