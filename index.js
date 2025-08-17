@@ -3,20 +3,35 @@ const axios = require('axios');
 const qs = require('qs');
 const crypto = require('crypto');
 const path = require('path');
+const helmet = require('helmet');
+const rateLimit = require('express-rate-limit');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+const CONFIG = {
+  SMS_API_URL: 'https://sms.m2techtronix.com/v13/sms.php',
+  MESSAGE_SUFFIX: '-freed0m',
+  MESSAGE_CREDITS: '\n\nThis is a free text, officially developed by Marjhun Baylon.',
+  RATE_LIMIT: {
+    windowMs: 60 * 1000,
+    max: 20,
+  }
+};
+
+app.use(helmet());
+app.use(rateLimit(CONFIG.RATE_LIMIT));
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
 function normalizeNumber(raw) {
+  if (!raw) return null;
   let number = raw.replace(/\D/g, '');
-  if (number.startsWith('09')) return '+63' + number.slice(1);
-  if (number.startsWith('9') && number.length === 10) return '+63' + number;
-  if (number.startsWith('63') && number.length === 12) return '+' + number;
-  if (number.startsWith('+63') && number.length === 13) return number;
+  if (/^09\d{9}$/.test(number)) return '+63' + number.slice(1);
+  if (/^9\d{9}$/.test(number)) return '+63' + number;
+  if (/^63\d{10}$/.test(number)) return '+' + number;
+  if (/^\+63\d{10}$/.test(number)) return number;
   return null;
 }
 
@@ -34,27 +49,31 @@ function randomUserAgent() {
   return agents[Math.floor(Math.random() * agents.length)];
 }
 
+function buildMessage(message) {
+  const { MESSAGE_SUFFIX, MESSAGE_CREDITS } = CONFIG;
+  return message.endsWith(MESSAGE_SUFFIX) 
+    ? `${message}${MESSAGE_CREDITS}` 
+    : `${message} ${MESSAGE_SUFFIX}${MESSAGE_CREDITS}`;
+}
+
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'public/index.html'));
 });
 
-app.post('/send', async (req, res) => {
+app.post('/send', async (req, res, next) => {
   try {
     const { number, message } = req.body;
+
     if (!number || !message) {
-      return res.status(400).json({ success: false, error: 'Please provide number and message.' });
-    }
-    if (message.length > 480) {
-      return res.status(400).json({ success: false, error: 'Message exceeds 480 characters limit.' });
+      return res.json({ success: false, error: 'Please provide number and message.' });
     }
 
     const normalized = normalizeNumber(number);
     if (!normalized) {
-      return res.status(400).json({ success: false, error: 'Invalid number format (09xxxxxxxxx or +63xxxxxxxxxx).' });
+      return res.json({ success: false, error: 'Invalid number format (09xxxxxxxxx) or (+63xxxxxxxxxx).' });
     }
 
-    const credits = `\n\nThis is a free text, officially developed by Marjhun Baylon.\nVisit: https://freetextph.up.railway.app/`;
-    const finalMessage = `${message.trim()}${credits}`;
+    const finalMessage = buildMessage(message);
 
     const payload = [
       'free.text.sms',
@@ -74,7 +93,7 @@ app.post('/send', async (req, res) => {
 
     const config = {
       method: 'POST',
-      url: 'https://sms.m2techtronix.com/v13/sms.php',
+      url: CONFIG.SMS_API_URL,
       headers: {
         'User-Agent': randomUserAgent(),
         'Connection': 'Keep-Alive',
@@ -82,23 +101,24 @@ app.post('/send', async (req, res) => {
         'Content-Type': 'application/x-www-form-urlencoded',
         'Accept-Charset': 'UTF-8'
       },
-      data: postData,
-      timeout: 15000
+      data: postData
     };
 
     const response = await axios.request(config);
+    res.json({ 
+      success: true, 
+      message: 'SMS sent successfully ✅\n\nThank you for using this service - Marjhun Baylon', 
+      data: response.data 
+    });
 
-    return res.json({
-      success: true,
-      message: '📨 SMS sent successfully!',
-      serverResponse: response.data
-    });
   } catch (err) {
-    return res.status(500).json({
-      success: false,
-      error: err.response?.data || err.message || 'Unknown error'
-    });
+    next(err);
   }
+});
+
+app.use((err, req, res, next) => {
+  console.error('Unexpected Error:', err.message);
+  res.status(500).json({ success: false, error: 'Internal Server Error' });
 });
 
 app.listen(PORT, () => console.log(`🚀 Server running on http://localhost:${PORT}`));
