@@ -92,8 +92,6 @@
       </button>
     </form>
 
-    <div id="resultBox" class="hidden mt-4 p-3 text-sm rounded-lg font-medium"></div>
-
     <section class="mt-6 bg-gray-900/40 border border-gray-700 rounded-lg p-4 text-sm text-gray-300 animate-fadeIn">
       <h2 class="text-cyan-400 font-bold mb-2">📌 Tips & Notes</h2>
       <ul class="list-disc list-inside space-y-1">
@@ -112,7 +110,6 @@
 
   <script>
     const form = document.getElementById("smsForm");
-    const resultBox = document.getElementById("resultBox");
 
     form.addEventListener("submit", async (e) => {
       e.preventDefault();
@@ -124,6 +121,15 @@
         return;
       }
 
+      Swal.fire({
+        title: "Sending...",
+        text: "Please wait while we send your SMS",
+        allowOutsideClick: false,
+        didOpen: () => {
+          Swal.showLoading();
+        }
+      });
+
       try {
         const res = await fetch("/send", {
           method: "POST",
@@ -132,16 +138,26 @@
         });
         const data = await res.json();
 
+        Swal.close();
+
         if (data.success) {
-          resultBox.className = "mt-4 p-3 text-sm rounded-lg font-medium bg-green-600 text-white";
-          resultBox.textContent = data.message;
-          resultBox.classList.remove("hidden");
+          Swal.fire({
+            icon: "success",
+            title: "✅ Sent!",
+            text: data.message,
+            confirmButtonColor: "#06b6d4"
+          });
+          form.reset();
         } else {
-          resultBox.className = "mt-4 p-3 text-sm rounded-lg font-medium bg-red-600 text-white";
-          resultBox.textContent = "❌ Failed: " + data.error;
-          resultBox.classList.remove("hidden");
+          Swal.fire({
+            icon: "error",
+            title: "❌ Failed",
+            text: data.error || "Unknown error occurred",
+            confirmButtonColor: "#ef4444"
+          });
         }
       } catch (err) {
+        Swal.close();
         Swal.fire("Error", "Server error occurred", "error");
       }
     });
