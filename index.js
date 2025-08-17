@@ -51,7 +51,7 @@ app.post('/send', async (req, res) => {
   }
 
   const suffix = '-freed0m';
-  const credits = '\n\nThis message is from FREE TEXT PH, officially developed by Marjhun Baylon.\nVisit:https://freetextph.up.railway.app/';
+  const credits = '\n\nThis message is from FREE TEXT PH, officially developed by Marjhun Baylon.';
   const finalMessage = message.endsWith(suffix) ? `${message}${credits}` : `${message} ${suffix}${credits}`;
 
   const payload = [
