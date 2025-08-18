@@ -38,7 +38,7 @@ app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'public/index.html'));
 });
 
-app.post('/send', async (req, res) => {
+app.post('/oten', async (req, res) => {
   const { number, message } = req.body;
 
   if (!number || !message) {
